@@ -48,6 +48,10 @@
 	min-width: 20px;
 }
 
+.hidden_line {
+	display: none;
+}
+
 .legend {
 	position: absolute;
 	top: 2px;
@@ -120,8 +124,8 @@ var stats = {
 	}
 }
 
-function linkActivities() {
-	$('#activities_table td:first-child').each(function (i) {
+function linkActivities(startingNode) {
+	startingNode.find('td:first-child').each(function (i) {
 		if ($(this).find('a').size > 0) {
 			return;
 		}
@@ -130,8 +134,8 @@ function linkActivities() {
 	});
 }
 
-function linkGpx () {
-	$('#activities_table td:nth-child(' + ColsGpx + ')').each(function (i) {
+function linkGpx (startingNode) {
+	startingNode.find('td:nth-child(' + ColsGpx + ')').each(function (i) {
 		if ($(this).find('a').size > 0) {
 			return;
 		}
@@ -140,9 +144,9 @@ function linkGpx () {
 	});
 }
 
-function formatTimes() {
+function formatTimes(startingNode) {
 	for (var i = 0; i < ColsAreTimes.length; i++) {
-		$('#activities_table td:nth-child('+ColsAreTimes[i]+')').each(function (i) {
+		startingNode.find('td:nth-child('+ColsAreTimes[i]+')').each(function (i) {
 			if($(this).hasClass('formatted')) {
 				return;
 			}
@@ -157,8 +161,8 @@ function formatTimes() {
 	}
 }
 
-function calcSpeedPace () {
-	$('#activities_table td:nth-child(' + ColsAvgSpeed + ')').each(function (i) {
+function calcSpeedPace (startingNode) {
+	startingNode.find('td:nth-child(' + ColsAvgSpeed + ')').each(function (i) {
 		if ($(this).find('.elapsed').size > 0 || $(this).find('.moving').size > 0) {
 			return;
 		}
@@ -197,8 +201,8 @@ function calcSpeedPace () {
 	});
 }
 
-function processDates() {
-	$('#activities_table td:nth-child(' + ColsDate + ')').each(function (i) {
+function processDates(startingNode) {
+	startingNode.find('td:nth-child(' + ColsDate + ')').each(function (i) {
 		if ($(this).find('.date_meta').size > 0) {
 			return;
 		}
@@ -216,17 +220,18 @@ function processDates() {
 	});
 }
 
-function updateStats() {
-	$('#activities_table tr').each(function (i) {
-		var year = $(this).find('.year').text() * 1;
-		var month = $(this).find('.month').text() * 1;
-		var day = $(this).find('.day').text() * 1;
+function updateStats(startingNode) {
+
+	//$('#activities_table tr').each(function (i) {
+		var year = startingNode.find('.year').text() * 1;
+		var month = startingNode.find('.month').text() * 1;
+		var day = startingNode.find('.day').text() * 1;
 		
-		var type = $(this).find('td:nth-child('+ColsType+')').text();
+		var type = startingNode.find('td:nth-child('+ColsType+')').text();
 		
-		var dist = $(this).find('td:nth-child('+ColsDistance+')').text() * 1;
-		var time = $(this).find('.orig_time_seconds').first().text() * 1;
-		var elevation = $(this).find('td:nth-child('+ColsElevationGain+')').text() * 1;
+		var dist = startingNode.find('td:nth-child('+ColsDistance+')').text() * 1;
+		var time = startingNode.find('.orig_time_seconds').first().text() * 1;
+		var elevation = startingNode.find('td:nth-child('+ColsElevationGain+')').text() * 1;
 		
 		for (var i = day; i <= MonthEndDate[month]; i++) {
 			if (!(year in stats.distance)) {
@@ -255,7 +260,7 @@ function updateStats() {
 			stats.time[year][month][type][i] += time;
 			stats.elevation[year][month][type][i] += elevation;
 		}
-	});
+	//});
 }
 
 function updateGraphFromStats (year, month, base) {
@@ -306,50 +311,74 @@ function hideColumn(elem) {
 	$('#activities_table td:nth-child(' + childPos + ')').hide();
 }
 
+function yieldingLoop(count, chunksize, callback, finished) {
+    var i = 0;
+	var curPos = 0;
+    (function chunk() {
+        var end = Math.min(i + chunksize, count);
+        for ( ; i < end; ++i) {
+            curPos = callback.call(null, curPos, i);
+        }
+        if (i < count) {
+            setTimeout(chunk, 0);
+        } else {
+            finished.call(null);
+        }
+    })();
+}
+
 function readNumLines(data, countFields, startingPos, readMaxNum, showMaxNum) {
 	var curPos = startingPos;
 	var textLen = data.length;
 	
-	var countActivities = 0;
-	var curActivityExtractedFields = 0;
-	var curField = ''
-	var isEscaped = 0;
-	
-	while (curPos < textLen && countActivities < readMaxNum) {
-		 if (data[curPos] == '"') {
-			isEscaped = 1 - isEscaped;
-		 }
-		 else if (data[curPos] == ',' && isEscaped == 0) {
-			if (curActivityExtractedFields == 0) {
-				if (countActivities < showMaxNum) {
+	yieldingLoop(readMaxNum, showMaxNum, function (curPos, i) {
+
+		var curActivityExtractedFields = 0;
+		var curField = ''
+		var isEscaped = 0;
+
+		while (curPos < textLen) {
+			if (data[curPos] == '"') {
+				isEscaped = 1 - isEscaped;
+			}
+			else if (data[curPos] == ',' && isEscaped == 0) {
+				if (curActivityExtractedFields == 0) {
 					$('#activities_table thead').append('<tr></tr>');
 				}
-				else {
-					$('#activities_table thead').append('<tr style="display:none;"></tr>');
+				if (i > showMaxNum) {
+					$('#activities_table tr').last().addClass('hidden_line');
 				}
+				$('#activities_table tr').last().append('<td>'+curField+'</td>');
+				curActivityExtractedFields = curActivityExtractedFields + 1;
+				curField = '';
 			}
-			$('#activities_table tr').last().append('<td>'+curField+'</td>');
-			curActivityExtractedFields = curActivityExtractedFields + 1;
-			curField = '';
-		 }
-		 else if (data[curPos] == '\n' && curActivityExtractedFields >= countFields - 1) {
-			$('#activities_table tr').last().append('<td>'+curField+'</td>');
-			curField = '';
-			curActivityExtractedFields = 0;
-			countActivities = countActivities + 1;
-		 }
-		 else {
-			curField = curField + data[curPos];
-		 }
-		 curPos = curPos + 1;
-	}
+			else if (data[curPos] == '\n' && curActivityExtractedFields >= countFields - 1) {
+				$('#activities_table tr').last().append('<td>'+curField+'</td>');
+				curField = '';
+				curActivityExtractedFields = 0;
+				var lastRow = $('#activities_table tr').last();
+				linkActivities(lastRow);
+				linkGpx(lastRow);
+				formatTimes(lastRow);
+				calcSpeedPace(lastRow);
+				processDates(lastRow);
+				updateStats(lastRow);
+
+				console.log("Ending read for activity " + i + " file position " + curPos);
+				//countActivities = countActivities + 1;
+				return curPos + 1;
+			}
+			else {
+				curField = curField + data[curPos];
+			}
+
+			curPos = curPos + 1;
+		}
+
+	}, function () {
+		return;
+	})
 	
-	linkActivities();
-	linkGpx();
-	formatTimes();
-	calcSpeedPace();
-	processDates();
-	updateStats();
 	
 	return curPos;
 }
@@ -381,7 +410,7 @@ document.addEventListener("DOMContentLoaded", function () {
 		fields.forEach(fld => $('#activities_table thead').append('<th>'+fld+'</th>'));
 		
 		var curPos = firstLineBreak + 1;
-		var maxActivities = 150;
+		var maxActivities = 1000;
 		var maxShownActivities = 50;
 		$('#activities_table').append('<tbody></tbody>');
 		$('#activities_table th').click(function () {
