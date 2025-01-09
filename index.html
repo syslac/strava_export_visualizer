@@ -64,13 +64,13 @@
 
 <script type="text/javascript">
 
-var ColsAreTimes = [6, 16, 17];
-var ColsGpx = 13;
-var ColsAvgSpeed = 20;
-var ColsType = 4;
-var ColsDistance = 18;
-var ColsElevationGain = 21;
-var ColsDate = 2;
+var ColsAreTimes = [5, 15, 16];
+var ColsGpx = 12;
+var ColsAvgSpeed = 19;
+var ColsType = 3;
+var ColsDistance = 17;
+var ColsElevationGain = 20;
+var ColsDate = 1;
 
 var MonthStringToNum = {
 	'Jan' : 1,
@@ -124,143 +124,156 @@ var stats = {
 	}
 }
 
-function linkActivities(startingNode) {
-	startingNode.find('td:first-child').each(function (i) {
-		if ($(this).find('a').size > 0) {
-			return;
-		}
-		var actId = $(this).text();
-		$(this).html('<a href="https://strava.com/activities/'+actId+'">'+actId+'</a>');	
-	});
-}
-
-function linkGpx (startingNode) {
-	startingNode.find('td:nth-child(' + ColsGpx + ')').each(function (i) {
-		if ($(this).find('a').size > 0) {
-			return;
-		}
-		var localLink = $(this).text();
-		$(this).html('<a href="'+localLink+'">Gpx file</a>');	
-	});
-}
-
-function formatTimes(startingNode) {
-	for (var i = 0; i < ColsAreTimes.length; i++) {
-		startingNode.find('td:nth-child('+ColsAreTimes[i]+')').each(function (i) {
-			if($(this).hasClass('formatted')) {
-				return;
-			}
-			var timeInSec = $(this).text() * 1;
-			var finalTimeSec = timeInSec % 60;
-			var finalTimeMin = ((timeInSec - finalTimeSec) / 60) % 60;
-			var finalTimeHour = (timeInSec - finalTimeSec - (finalTimeMin * 60)) / 3600;
-			$(this).html(((finalTimeHour > 0) ? finalTimeHour + 'h ': '') + finalTimeMin.toLocaleString('it-IT', {minimumIntegerDigits: 2, useGrouping:false}) + 'm ' + ((finalTimeHour == 0) ? finalTimeSec.toLocaleString('it-IT', {minimumIntegerDigits: 2, useGrouping:false}) + 's ' : '') + '<span style="visibility:hidden;" class="orig_time_seconds">' + timeInSec + '</span>');
-			
-			$(this).addClass('formatted');
-		});
+function linkActivities(line) {
+	var first_field = $("<td></td>").html(line[0]);
+	if (first_field.find('a').size > 0) {
+		return;
 	}
+	var actId = line[0];
+	first_field.html('<a href="https://strava.com/activities/'+actId+'">'+actId+'</a>');	
+	line[0] = first_field.html();
+	return line;
 }
 
-function calcSpeedPace (startingNode) {
-	startingNode.find('td:nth-child(' + ColsAvgSpeed + ')').each(function (i) {
-		if ($(this).find('.elapsed').size > 0 || $(this).find('.moving').size > 0) {
+function linkGpx (line) {
+	var gpx_field = $("<td></td>").html(line[ColsGpx]);
+	if (gpx_field.find('a').size > 0) {
+		return;
+	}
+	var localLink = line[ColsGpx];
+	gpx_field.html('<a href="'+localLink+'">Gpx file</a>');	
+	line[ColsGpx] = gpx_field.html();
+	return line;
+}
+
+function formatTimes(line) {
+	for (var i = 0; i < ColsAreTimes.length; i++) {
+		var time_field = $("<td></td>").html(line[ColsAreTimes[i]]);
+
+		if(time_field.hasClass('formatted')) {
 			return;
 		}
-		var type = $(this).parent().find('td:nth-child(' + ColsType + ')').text();
-		var dist = $(this).parent().find('td:nth-child(' + ColsDistance + ')').text() * 1;
-		var movingTime = $(this).parent().find('td:nth-child(' + ColsAreTimes[2] + ') span.orig_time_seconds').text() * 1;
-		var elapsedTime = $(this).parent().find('td:nth-child(' + ColsAreTimes[1] + ') span.orig_time_seconds').text() * 1;
-		var elevationGain = $(this).parent().find('td:nth-child(' + ColsElevationGain + ')').text() * 1;
-				
-		if (type == 'Ride') {
-			var avgMovingSpd = dist / movingTime * 3.6;
-			var avgElapsedSpd = dist / elapsedTime * 3.6;
-			$(this).html('<div class="elapsed">' + avgElapsedSpd.toLocaleString('it-IT', {maximumFractionDigits: 2}) + ' km/h (elps)</div>'+
-						'<div class="moving">' + avgMovingSpd.toLocaleString('it-IT', {maximumFractionDigits: 2}) + ' km/h (mov)</div>');
-		}
-		else {
-			var avgMovingSpd = movingTime / (dist / 1000);
-			var avgMovingSpdSec = avgMovingSpd % 60;
-			var avgMovingSpdMin = (avgMovingSpd - avgMovingSpdSec) / 60;
-			var avgElapsedSpd = elapsedTime / (dist / 1000);
-			var avgElapsedSpdSec = avgElapsedSpd % 60;
-			var avgElapsedSpdMin = (avgElapsedSpd - avgElapsedSpdSec) / 60;
-			var avgElapsedGap = elapsedTime / (dist / 1000 + elevationGain / 100);
-			var avgElapsedGapSec = avgElapsedGap % 60;
-			var avgElapsedGapMin = (avgElapsedGap - avgElapsedGapSec) / 60;
-			var avgMovingGap = movingTime / (dist / 1000 + elevationGain / 100);
-			var avgMovingGapSec = avgMovingGap % 60;
-			var avgMovingGapMin = (avgMovingGap - avgMovingGapSec) / 60;
-			$(this).html('<div class="elapsed">' + avgElapsedSpdMin + ':' + avgElapsedSpdSec.toLocaleString('it-IT', {minimumIntegerDigits: 2, maximumFractionDigits: 0}) + ' min/km (elps)</div>'+
-						'<div class="moving">' + avgMovingSpdMin + ':' + avgMovingSpdSec.toLocaleString('it-IT', {minimumIntegerDigits: 2, maximumFractionDigits: 0}) + ' min/km (mov)</div>'+
-						'<div class="elapsed_gap">' + avgElapsedGapMin + ':' + avgElapsedGapSec.toLocaleString('it-IT', {minimumIntegerDigits: 2, maximumFractionDigits: 0}) + ' min/km (elps GAP)</div>'+
-						'<div class="moving_gap">' + avgMovingGapMin + ':' + avgMovingGapSec.toLocaleString('it-IT', {minimumIntegerDigits: 2, maximumFractionDigits: 0}) + ' min/km (mov GAP)</div>'
-						);
-		}
-		$(this).css({ 'min-width': '200px' });
-	});
+		var timeInSec = line[ColsAreTimes[i]] * 1;
+		var finalTimeSec = timeInSec % 60;
+		var finalTimeMin = ((timeInSec - finalTimeSec) / 60) % 60;
+		var finalTimeHour = (timeInSec - finalTimeSec - (finalTimeMin * 60)) / 3600;
+		time_field.html(((finalTimeHour > 0) ? finalTimeHour + 'h ': '') + finalTimeMin.toLocaleString('it-IT', {minimumIntegerDigits: 2, useGrouping:false}) + 'm ' + ((finalTimeHour == 0) ? finalTimeSec.toLocaleString('it-IT', {minimumIntegerDigits: 2, useGrouping:false}) + 's ' : '') + '<span style="visibility:hidden;" class="orig_time_seconds">' + timeInSec + '</span>');
+		
+		time_field.addClass('formatted');
+		line[ColsAreTimes[i]] = time_field.html();
+	}
+	return line;
 }
 
-function processDates(startingNode) {
-	startingNode.find('td:nth-child(' + ColsDate + ')').each(function (i) {
-		if ($(this).find('.date_meta').size > 0) {
-			return;
-		}
-		var dateParts = $(this).text().split(',');
-		var year = dateParts[1] * 1;
-		var inYearParts = dateParts[0].split(' ');
-		var month = inYearParts[0];
-		month = MonthStringToNum[month];
-		var day = inYearParts[1];
-		$(this).append('<div class="date_meta"><span class="year">' + year + '</span>'+
-			'<span class="month">' + month + '</span>'+
-			'<span class="day">' + day + '</span></div>');
-		$(this).find('.date_meta').hide();
-		$(this).css({ 'min-width': '120px' });
-	});
+function calcSpeedPace (line) {
+	var avg_field = $("<td></td>").html(line[ColsAvgSpeed]);
+
+	if (avg_field.find('.elapsed').size > 0 || avg_field.find('.moving').size > 0) {
+		return;
+	}
+	var type = line[ColsType];
+	var dist = line[ColsDistance] * 1;
+	var movingTime = line[ColsAreTimes[2]] * 1;
+	var elapsedTime = line[ColsAreTimes[1]] * 1;
+	var elevationGain = line[ColsElevationGain] * 1;
+			
+	if (type == 'Ride') {
+		var avgMovingSpd = dist / movingTime * 3.6;
+		var avgElapsedSpd = dist / elapsedTime * 3.6;
+		avg_field.html('<div class="elapsed">' + avgElapsedSpd.toLocaleString('it-IT', {maximumFractionDigits: 2}) + ' km/h (elps)</div>'+
+					'<div class="moving">' + avgMovingSpd.toLocaleString('it-IT', {maximumFractionDigits: 2}) + ' km/h (mov)</div>');
+	}
+	else {
+		var avgMovingSpd = movingTime / (dist / 1000);
+		var avgMovingSpdSec = avgMovingSpd % 60;
+		var avgMovingSpdMin = (avgMovingSpd - avgMovingSpdSec) / 60;
+		var avgElapsedSpd = elapsedTime / (dist / 1000);
+		var avgElapsedSpdSec = avgElapsedSpd % 60;
+		var avgElapsedSpdMin = (avgElapsedSpd - avgElapsedSpdSec) / 60;
+		var avgElapsedGap = elapsedTime / (dist / 1000 + elevationGain / 100);
+		var avgElapsedGapSec = avgElapsedGap % 60;
+		var avgElapsedGapMin = (avgElapsedGap - avgElapsedGapSec) / 60;
+		var avgMovingGap = movingTime / (dist / 1000 + elevationGain / 100);
+		var avgMovingGapSec = avgMovingGap % 60;
+		var avgMovingGapMin = (avgMovingGap - avgMovingGapSec) / 60;
+		avg_field.html('<div class="elapsed">' + avgElapsedSpdMin + ':' + avgElapsedSpdSec.toLocaleString('it-IT', {minimumIntegerDigits: 2, maximumFractionDigits: 0}) + ' min/km (elps)</div>'+
+					'<div class="moving">' + avgMovingSpdMin + ':' + avgMovingSpdSec.toLocaleString('it-IT', {minimumIntegerDigits: 2, maximumFractionDigits: 0}) + ' min/km (mov)</div>'+
+					'<div class="elapsed_gap">' + avgElapsedGapMin + ':' + avgElapsedGapSec.toLocaleString('it-IT', {minimumIntegerDigits: 2, maximumFractionDigits: 0}) + ' min/km (elps GAP)</div>'+
+					'<div class="moving_gap">' + avgMovingGapMin + ':' + avgMovingGapSec.toLocaleString('it-IT', {minimumIntegerDigits: 2, maximumFractionDigits: 0}) + ' min/km (mov GAP)</div>'
+					);
+	}
+	avg_field.css({ 'min-width': '200px' });
+
+	line[ColsAvgSpeed] = avg_field.html();
+	return line;
 }
 
-function updateStats(startingNode) {
+function processDates (line) {
+	console.log(line);
+	var date_field = $("<td></td>").html(line[ColsDate]);
 
-	//$('#activities_table tr').each(function (i) {
-		var year = startingNode.find('.year').text() * 1;
-		var month = startingNode.find('.month').text() * 1;
-		var day = startingNode.find('.day').text() * 1;
-		
-		var type = startingNode.find('td:nth-child('+ColsType+')').text();
-		
-		var dist = startingNode.find('td:nth-child('+ColsDistance+')').text() * 1;
-		var time = startingNode.find('.orig_time_seconds').first().text() * 1;
-		var elevation = startingNode.find('td:nth-child('+ColsElevationGain+')').text() * 1;
-		
-		for (var i = day; i <= MonthEndDate[month]; i++) {
-			if (!(year in stats.distance)) {
-				stats.distance[year] = {};
-				stats.time[year] = {};
-				stats.elevation[year] = {};
-				$('#activities_graph_year').append('<option>');
-				$('#activities_graph_year option').last().attr('value', year).text(year);
-			}
-			if (!(month in stats.distance[year])) {
-				stats.distance[year][month] = {};
-				stats.time[year][month] = {};
-				stats.elevation[year][month] = {};
-			}
-			if (!(type in stats.distance[year][month])) {
-				stats.distance[year][month][type] = {};
-				stats.time[year][month][type] = {};
-				stats.elevation[year][month][type] = {};
-			}
-			if (!(i in stats.distance[year][month][type])) {
-				stats.distance[year][month][type][i] = 0;
-				stats.time[year][month][type][i] = 0;
-				stats.elevation[year][month][type][i] = 0;
-			}
-			stats.distance[year][month][type][i] += dist;
-			stats.time[year][month][type][i] += time;
-			stats.elevation[year][month][type][i] += elevation;
+	if (date_field.find('.date_meta').size > 0) {
+		return;
+	}
+	var dateParts = line[ColsDate].split(',');
+	var year = dateParts[1] * 1;
+	var inYearParts = dateParts[0].split(' ');
+	var month = inYearParts[0];
+	month = MonthStringToNum[month];
+	var day = inYearParts[1];
+	date_field.append('<div class="date_meta"><span class="year">' + year + '</span>'+
+		'<span class="month">' + month + '</span>'+
+		'<span class="day">' + day + '</span></div>');
+	date_field.find('.date_meta').hide();
+	date_field.css({ 'min-width': '120px' });
+
+	line[ColsDate] = date_field.html();
+	return line;
+}
+
+function updateStats(line) {
+
+	// date extraction is duplicated, refactor
+	var dateParts = line[ColsDate].split(',');
+	var year = dateParts[1] * 1;
+	var inYearParts = dateParts[0].split(' ');
+	var month = inYearParts[0];
+	month = MonthStringToNum[month];
+	var day = inYearParts[1];
+	
+	var type = line[ColsType];
+	
+	var dist = line[ColsDistance] * 1;
+	var time = line[ColsAreTimes[1]] * 1;
+	var elevation = line[ColsElevationGain] * 1;
+	
+	for (var i = day; i <= MonthEndDate[month]; i++) {
+		if (!(year in stats.distance)) {
+			stats.distance[year] = {};
+			stats.time[year] = {};
+			stats.elevation[year] = {};
+			$('#activities_graph_year').append('<option>');
+			$('#activities_graph_year option').last().attr('value', year).text(year);
 		}
-	//});
+		if (!(month in stats.distance[year])) {
+			stats.distance[year][month] = {};
+			stats.time[year][month] = {};
+			stats.elevation[year][month] = {};
+		}
+		if (!(type in stats.distance[year][month])) {
+			stats.distance[year][month][type] = {};
+			stats.time[year][month][type] = {};
+			stats.elevation[year][month][type] = {};
+		}
+		if (!(i in stats.distance[year][month][type])) {
+			stats.distance[year][month][type][i] = 0;
+			stats.time[year][month][type][i] = 0;
+			stats.elevation[year][month][type][i] = 0;
+		}
+		stats.distance[year][month][type][i] += dist;
+		stats.time[year][month][type][i] += time;
+		stats.elevation[year][month][type][i] += elevation;
+	}
 }
 
 function updateGraphFromStats (year, month, base) {
@@ -311,6 +324,11 @@ function hideColumn(elem) {
 	$('#activities_table td:nth-child(' + childPos + ')').hide();
 }
 
+function addToJson(data)
+{
+	$("#full_json_data").append($("<div></div>").text(JSON.stringify(data)));
+}
+
 function yieldingLoop(count, chunksize, callback, finished) {
     var i = 0;
 	var curPos = 0;
@@ -336,33 +354,56 @@ function readNumLines(data, countFields, startingPos, readMaxNum, showMaxNum) {
 		var curActivityExtractedFields = 0;
 		var curField = ''
 		var isEscaped = 0;
+		var curLineFields = [];
 
 		while (curPos < textLen) {
 			if (data[curPos] == '"') {
 				isEscaped = 1 - isEscaped;
 			}
 			else if (data[curPos] == ',' && isEscaped == 0) {
-				if (curActivityExtractedFields == 0) {
-					$('#activities_table thead').append('<tr></tr>');
-				}
-				if (i > showMaxNum) {
-					$('#activities_table tr').last().addClass('hidden_line');
-				}
-				$('#activities_table tr').last().append('<td>'+curField+'</td>');
+				//if (curActivityExtractedFields == 0) {
+				//	$('#activities_table thead').append('<tr></tr>');
+				//}
+				//if (i > showMaxNum) {
+				//	$('#activities_table tr').last().addClass('hidden_line');
+				//}
+				//$('#activities_table tr').last().append('<td>'+curField+'</td>');
+				curLineFields.push(curField);
 				curActivityExtractedFields = curActivityExtractedFields + 1;
 				curField = '';
 			}
 			else if (data[curPos] == '\n' && curActivityExtractedFields >= countFields - 1) {
-				$('#activities_table tr').last().append('<td>'+curField+'</td>');
+				curLineFields.push(curField);
+				//$('#activities_table tr').last().append('<td>'+curField+'</td>');
+				//var lastRow = $('#activities_table tr').last();
+
+				// before working on data
+				addToJson(curLineFields);
+
+				updateStats(curLineFields);
+				//if (i > showMaxNum) 
+				//{
+				//	lastRow.remove();
+				//}
+				if (i < showMaxNum)
+				{
+					// modify data for visualization, only if it needs to be shown
+					curLineFields = linkActivities(curLineFields);
+					curLineFields = linkGpx(curLineFields);
+					// needs to be before formatTimes
+					curLineFields = calcSpeedPace(curLineFields);
+					curLineFields = formatTimes(curLineFields);
+					curLineFields = processDates(curLineFields);
+
+					// add element
+					$('#activities_table thead').append('<tr></tr>');
+					for (var j = 0; j < curLineFields.length; j++) {
+						$('#activities_table tr').last().append('<td>'+curLineFields[j]+'</td>');
+					}
+				}
 				curField = '';
 				curActivityExtractedFields = 0;
-				var lastRow = $('#activities_table tr').last();
-				linkActivities(lastRow);
-				linkGpx(lastRow);
-				formatTimes(lastRow);
-				calcSpeedPace(lastRow);
-				processDates(lastRow);
-				updateStats(lastRow);
+				curLineFields = [];
 
 				console.log("Ending read for activity " + i + " file position " + curPos);
 				//countActivities = countActivities + 1;
@@ -471,6 +512,8 @@ document.addEventListener("DOMContentLoaded", function () {
 			<option value="elevation">Elevation</option>
 			<option value="time">Time</option>
 		</select>
+	</div>
+	<div class="hidden_line" id="full_json_data">
 	</div>
 </body>
 </html>
