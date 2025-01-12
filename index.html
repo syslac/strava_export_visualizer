@@ -71,6 +71,9 @@
 	padding-right: 5px;
 }
 
+.activity_picture {
+	width: 100px;
+}
 
 </style>
 
@@ -83,6 +86,7 @@ var ColsType = 3;
 var ColsDistance = 17;
 var ColsElevationGain = 20;
 var ColsDate = 1;
+var ColsImages = 93;
 var maxShownActivities = 50;
 
 var MonthStringToNum = {
@@ -222,7 +226,6 @@ function calcSpeedPace (line) {
 }
 
 function processDates (line) {
-	console.log(line);
 	var date_field = $("<td></td>").html(line[ColsDate]);
 
 	if (date_field.find('.date_meta').size > 0) {
@@ -241,6 +244,19 @@ function processDates (line) {
 	date_field.css({ 'min-width': '120px' });
 
 	line[ColsDate] = date_field.html();
+	return line;
+}
+
+function processImages (line) {
+	var img_field = $("<td></td>");
+	console.log(line[ColsImages]);
+	var img_links = line[ColsImages].split("|");
+	img_links.forEach((href) => {
+		console.log(href);
+		img_field.append("<span><a href=\"" + href + "\" target=\"blank\"><img src=\"" + href + "\" class=\"activity_picture\" /></a></span>");
+	});
+
+	line[ColsImages] = img_field.html();
 	return line;
 }
 
@@ -414,6 +430,7 @@ function readNumLines(data, countFields, startingPos, readMaxNum, showMaxNum) {
 					curLineFields = calcSpeedPace(curLineFields);
 					curLineFields = formatTimes(curLineFields);
 					curLineFields = processDates(curLineFields);
+					curLineFields = processImages(curLineFields);
 
 					// add element
 					addToTable(curLineFields);
@@ -454,6 +471,7 @@ function readNumLines(data, countFields, startingPos, readMaxNum, showMaxNum) {
 				curLineFields = calcSpeedPace(curLineFields);
 				curLineFields = formatTimes(curLineFields);
 				curLineFields = processDates(curLineFields);
+				curLineFields = processImages(curLineFields);
 				addToTable(curLineFields);
 			}
 		});
