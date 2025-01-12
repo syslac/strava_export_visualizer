@@ -10,7 +10,7 @@
 
 .main_content {
 	position: absolute;
-	top: 5%;
+	top: 80px;
 	left: 2%;
 	width: 96%;
 	height: 90%;
@@ -19,6 +19,8 @@
 
 .controls {
 	width : 95%;
+	position: absolute;
+	top: 15px;
 }
 
 #loader {
@@ -59,6 +61,16 @@
 	padding: 5px;
 }
 
+#paging {
+	width: 95%;
+	margin-top: 50px;
+}
+
+.page_link {
+	text-decoration: underline;
+	padding-right: 5px;
+}
+
 
 </style>
 
@@ -71,6 +83,7 @@ var ColsType = 3;
 var ColsDistance = 17;
 var ColsElevationGain = 20;
 var ColsDate = 1;
+var maxShownActivities = 50;
 
 var MonthStringToNum = {
 	'Jan' : 1,
@@ -345,6 +358,13 @@ function yieldingLoop(count, chunksize, callback, finished) {
     })();
 }
 
+function addToTable(data) {
+	$('#activities_table tbody').append('<tr></tr>');
+	for (var j = 0; j < data.length; j++) {
+		$('#activities_table tr').last().append('<td>'+data[j]+'</td>');
+	}
+}
+
 function readNumLines(data, countFields, startingPos, readMaxNum, showMaxNum) {
 	var curPos = startingPos;
 	var textLen = data.length;
@@ -396,10 +416,7 @@ function readNumLines(data, countFields, startingPos, readMaxNum, showMaxNum) {
 					curLineFields = processDates(curLineFields);
 
 					// add element
-					$('#activities_table thead').append('<tr></tr>');
-					for (var j = 0; j < curLineFields.length; j++) {
-						$('#activities_table tr').last().append('<td>'+curLineFields[j]+'</td>');
-					}
+					addToTable(curLineFields);
 				}
 				curField = '';
 				curActivityExtractedFields = 0;
@@ -417,7 +434,29 @@ function readNumLines(data, countFields, startingPos, readMaxNum, showMaxNum) {
 		}
 
 	}, function () {
-		return;
+		var lines_read = $("#full_json_data").find("div").length;
+		console.log("finishing with " + lines_read + " activities read");
+		$("#paging").append($("<span>Pages:&nbsp;</span>"));
+		for (var i = 0; i < lines_read / maxShownActivities; i++) {
+			var page_link = $("<span>" + i + "</span>")
+			page_link.addClass("page_link");
+			console.log(page_link);
+			$("#paging").append(page_link);
+		}
+		$("#paging").on("click", "span", function() {
+			$("#activities_table tbody").empty();
+			for (var j = Number($(this).text()) * maxShownActivities + 1; j <= (Number($(this).text()) + 1) * maxShownActivities; j++) {
+				// no need to recompute stats or json, just function for display
+				console.log($("#full_json_data div:nth-child(" + j + ")").text());
+				var curLineFields = JSON.parse($("#full_json_data div:nth-child(" + j + ")").text());
+				curLineFields = linkActivities(curLineFields);
+				curLineFields = linkGpx(curLineFields);
+				curLineFields = calcSpeedPace(curLineFields);
+				curLineFields = formatTimes(curLineFields);
+				curLineFields = processDates(curLineFields);
+				addToTable(curLineFields);
+			}
+		});
 	})
 	
 	
@@ -451,8 +490,7 @@ document.addEventListener("DOMContentLoaded", function () {
 		fields.forEach(fld => $('#activities_table thead').append('<th>'+fld+'</th>'));
 		
 		var curPos = firstLineBreak + 1;
-		var maxActivities = 1000;
-		var maxShownActivities = 50;
+		var maxActivities = 9999;
 		$('#activities_table').append('<tbody></tbody>');
 		$('#activities_table th').click(function () {
 			hideColumn($(this));
@@ -487,6 +525,8 @@ document.addEventListener("DOMContentLoaded", function () {
 
 <body>
 	<div class="controls">
+	</div>
+	<div id="paging">
 	</div>
 	<table id="activities_table" class="main_content">
 	</table>
